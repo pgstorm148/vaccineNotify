@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+
+        <title>Vaccine Notify</title>
+                                                                 <h1>Cowin Slot Notifier | Shot of Hope</h1>
+                                                               
+                                                                    <!DOCTYPE html>
+                                                                    <html lang="en">
+                                                                        <head>
+                                                                            <meta charset="UTF-8">
+                                                                            <title>Vaccine slot notifier</title>
+                                                                            <br />
+        <img src= "shotofhope.png" >
+                                                                            <style>
+                                                                                table, th, td {
+                                                                                    border: 1px solid black;
+                                                                                }
+                                                                            </style>
+                                                                            <script>
+                                                                                var urls = {
+                                                                                    stateUrl: 'https://cdn-api.co-vin.in/api/v2/admin/location/states',
+                                                                                    districtsUrl: 'https://cdn-api.co-vin.in/api/v2/admin/location/districts/',
+                                                                                    sessionBasedOnDistrict: 'https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByDistrict',
+                                                                                    sessionBasedOnPin: 'https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByPin',
+                                                                                    selfRegistrationUrl: 'https://selfregistration.cowin.gov.in/',
+                                                                                    pollingFrequency: 60,
+                                                                                    
+                                                                                    googleMaps: 'https://www.google.com/maps/search/'
+                                                                                }
+                                                                            </script>
+                                                                            <script type="text/javascript" src="url.js"></script>
+                                                                            <script>
+
+                                                                                var stopPolling = true;
+                                                                                var useCurrentDate = true;
+
+                                                                                function showOrHideElements(element, visibility) {
+                                                                                    var numberOfElements = 0;
+                                                                                    document.querySelectorAll(element).forEach(function(el) {
+                                                                                        el.style.display = visibility;
+                                                                                        numberOfElements++;
+                                                                                    });
+                                                                                    return numberOfElements;
+                                                                                }
+
+                                                                                function ajaxRequest(url) {
+                                                                                    setPauseTimer(true);
+                                                                                    var xhttp = window.XMLHttpRequest ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP");
+                                                                                    var response = "";
+                                                                                    try {
+                                                                                        xhttp.onreadystatechange = function() {
+                                                                                            if (this.readyState == 4 && this.status == 200) {
+                                                                                                response = this.responseText;
+                                                                                            }
+                                                                                        }
+                                                                                        ;
+                                                                                        xhttp.open("GET", url, false);
+                                                                                        xhttp.send();
+                                                                                    } catch (error) {
+                                                                                        response = "Error occurred";
+                                                                                    }
+
+                                                                                    return response;
+                                                                                }
+
+                                                                                function isDatePickerSupported() {
+                                                                                    var input = document.createElement('input');
+                                                                                    var value = 'a';
+                                                                                    input.setAttribute('type', 'date');
+                                                                                    input.setAttribute('value', value);
+                                                                                    return (input.value !== value);
+                                                                                }
+
+                                                                                function loadDistrictById(stateId) {
+                                                                                    var url = urls.districtsUrl + stateId;
+                                                                                    var responseText = ajaxRequest(url);
+                                                                                    if (responseText == 'Error occurred') {
+                                                                                        alert('Cowin site is not reachable.');
+                                                                                        return false;
+                                                                                    }
+                                                                                    var districtArray = JSON.parse(responseText).districts;
+                                                                                    var i = 0
+                                                                                      , districtLength = districtArray.length;
+                                                                                    var select = document.getElementById('district_list'), option, district;
+                                                                                    while (select.options.length) {
+                                                                                        select.remove(0);
+                                                                                    }
+                                                                                    for (; i < districtLength; i++) {
+                                                                                        option = document.createElement('option');
+                                                                                        option.setAttribute('value', districtArray[i].district_id);
+                                                                                        option.appendChild(document.createTextNode(districtArray[i].district_name));
+                                                                                        select.appendChild(option);
+                                                                                    }
+                                                                                    showOrHideElements('.district_code_class', 'block');
+                                                                                    showOrHideElements('.date_class', 'block');
+                                                                                    if (isDatePickerSupported()) {
+                                                                                        showOrHideElements('#date_picker', 'inline-block');
+                                                                                        document.getElementById('date_picker').valueAsDate = new Date();
+                                                                                        showOrHideElements('#date_selector', 'none');
+                                                                                    }
+                                                                                    showOrHideElements('.start_stop_polling', 'block');
+                                                                                    return true;
+                                                                                }
+
+                                                                                function loadStates() {
+                                                                                    var responseText = ajaxRequest(urls.stateUrl);
+                                                                                    if (responseText == 'Error occurred') {
+                                                                                        alert('Cowin site is not reachable.');
+                                                                                        return false;
+                                                                                    }
+                                                                                    var stateArray = JSON.parse(responseText).states;
+                                                                                    var i = 0
+                                                                                      , stateLength = stateArray.length;
+                                                                                    var select = document.getElementById('state_list'), option, state;
+                                                                                    while (select.options.length) {
+                                                                                        select.remove(0);
+                                                                                    }
+                                                                                    for (; i < stateLength; i++) {
+                                                                                        option = document.createElement('option');
+                                                                                        option.setAttribute('value', stateArray[i].state_id);
+                                                                                        option.appendChild(document.createTextNode(stateArray[i].state_name));
+                                                                                        select.appendChild(option);
+                                                                                    }
+                                                                                    var firstStateId = stateArray[0].state_id;
+                                                                                    return loadDistrictById(firstStateId);
+                                                                                }
+
+                                                                                function loadDistricts() {
+                                                                                    var stateId = document.getElementById('state_list').value;
+                                                                                    loadDistrictById(stateId);
+                                                                                }
+
+                                                                                function displayDivBasedOnRadioValue() {
+                                                                                    var ele = document.getElementsByName('area_option');
+                                                                                    for (i = 0; i < ele.length; i++) {
+                                                                                        if (ele[i].checked) {
+                                                                                            if (ele[i].value == 'pin_code') {
+                                                                                                showOrHideElements('.pin_code_class', 'block');
+                                                                                                showOrHideElements('.date_class', 'block');
+                                                                                                if (isDatePickerSupported()) {
+                                                                                                    showOrHideElements('#date_picker', 'inline-block');
+                                                                                                    document.getElementById('date_picker').valueAsDate = new Date();
+                                                                                                    showOrHideElements('#date_selector', 'none');
+                                                                                                }
+                                                                                                showOrHideElements('.start_stop_polling', 'block');
+                                                                                                showOrHideElements('.state_code_class', 'none');
+                                                                                                setStopPolling();
+                                                                                            } else if (ele[i].value == 'district_code') {
+                                                                                                showOrHideElements('.district_code_class', 'none');
+                                                                                                if (loadStates()) {
+                                                                                                    showOrHideElements('.state_code_class', 'block');
+                                                                                                    showOrHideElements('.pin_code_class', 'none');
+                                                                                                    setStopPolling();
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+
+                                                                                function displayDateBasedOnRadioValue() {
+                                                                                    var ele = document.getElementsByName('date_option');
+                                                                                    for (i = 0; i < ele.length; i++) {
+                                                                                        if (ele[i].checked) {
+                                                                                            if (ele[i].value == 'current_date') {
+                                                                                                showOrHideElements('#date_selector_div', 'none');
+                                                                                                useCurrentDate = true;
+                                                                                            } else if (ele[i].value == 'custom_date') {
+                                                                                                showOrHideElements('#date_selector_div', 'block');
+                                                                                                useCurrentDate = false;
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+
+                                                                                function checkAvailability(apiResponse) {
+                                                                                    var availabilityStatus = [];
+                                                                                    if (apiResponse != null && apiResponse.centers != null && apiResponse.centers.length > 0) {
+                                                                                        var centersArray = apiResponse.centers;
+                                                                                        var centerLength = centersArray.length;
+                                                                                        var i = 0;
+                                                                                        var ageText = document.getElementById('age_text').value.split('-');
+                                                                                        var doseText = document.getElementById('dose_text').value;
+                                                                                        var minimumAge = parseInt(ageText[0]);
+                                                                                        var maximumAge = parseInt(ageText[1]);
+                                                                                        for (; i < centerLength; i++) {
+                                                                                            var center = centersArray[i];
+                                                                                            var centerDetails = {};
+                                                                                            if (center != null && center.name != null && center.sessions != null ** center.sessions.length > 0) {
+                                                                                                var sessionsArray = center.sessions;
+                                                                                                var sessionsLength = sessionsArray.length;
+                                                                                                var j = 0;
+                                                                                                for (; j < sessionsLength; j++) {
+                                                                                                    var session = sessionsArray[j];
+                                                                                                    if (session.available_capacity > 0 && (session.hasOwnProperty(doseText) && session[doseText] > 0) && minimumAge <= session.min_age_limit && session.min_age_limit <= maximumAge) {
+                                                                                                        if (JSON.stringify(centerDetails) === JSON.stringify({})) {
+                                                                                                            centerDetails.name = center.name;
+                                                                                                            centerDetails.address = center.address;
+                                                                                                            centerDetails.fee_type = center.fee_type;
+                                                                                                            centerDetails.pincode = center.pincode;
+                                                                                                            centerDetails.sessions = [];
+                                                                                                        }
+                                                                                                        var sessionDetails = {};
+                                                                                                        sessionDetails.date = session.date;
+                                                                                                        sessionDetails.available_capacity = session.available_capacity;
+                                                                                                        sessionDetails.available_capacity_dose1 = session.available_capacity_dose1;
+                                                                                                        sessionDetails.available_capacity_dose2 = session.available_capacity_dose2;
+                                                                                                        sessionDetails.min_age_limit = session.min_age_limit;
+                                                                                                        sessionDetails.vaccine = session.vaccine;
+                                                                                                        sessionDetails.slots = session.slots;
+                                                                                                        centerDetails.sessions.push(sessionDetails);
+                                                                                                    }
+                                                                                                }
+                                                                                                if (JSON.stringify(centerDetails) !== JSON.stringify({})) {
+                                                                                                    availabilityStatus.push(centerDetails);
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                    return availabilityStatus;
+                                                                                }
+
+                                                                                function filterAvailabilityData() {
+                                                                                    var divSelectClassList = '';
+                                                                                    var rowSelectClassList = '';
+                                                                                    document.querySelectorAll('.divFilterClass').forEach(function(el) {
+                                                                                        if (el.value != 'all') {
+                                                                                            divSelectClassList += '.' + el.value;
+                                                                                        }
+                                                                                    });
+                                                                                    document.querySelectorAll('.rowFilterClass').forEach(function(el) {
+                                                                                        if (el.value != 'all') {
+                                                                                            rowSelectClassList += '.' + el.value;
+                                                                                        }
+                                                                                    });
+                                                                                    showOrHideElements('#slotNotAvailableFilter', 'none');
+                                                                                    var availableElements = 0;
+                                                                                    if (divSelectClassList != '' || rowSelectClassList != '') {
+                                                                                        showOrHideElements('.availabilityData', 'none');
+                                                                                        availableElements = showOrHideElements(divSelectClassList + rowSelectClassList, 'block');
+                                                                                        showOrHideElements('.availabilityRows', 'none');
+                                                                                        availableElements += showOrHideElements(divSelectClassList + ' .availabilityRows' + rowSelectClassList, 'table-row');
+                                                                                    } else {
+                                                                                        availableElements = showOrHideElements('.availabilityData', 'block');
+                                                                                        availableElements += showOrHideElements('.availabilityData .availabilityRows', 'table-row');
+                                                                                    }
+                                                                                    if (availableElements == 0) {
+                                                                                        showOrHideElements('.availabilityData', 'none');
+                                                                                        showOrHideElements('#slotNotAvailableFilter', 'block');
+                                                                                    }
+                                                                                }
+
+                                                                                function displayAvailability(availabilityStatus) {
+                                                                                    if (availabilityStatus != null) {
+                                                                                        var i = 0;
+                                                                                        var centerLength = availabilityStatus.length;
+                                                                                        var displayText = '';
+                                                                                        var hospitalSelectDiv = '<span style="margin-bottom:10px;"> Filter using Hospital : </span> <select class="divFilterClass" id="hospitalFilter" onchange="filterAvailabilityData()" style="margin-bottom:10px;">' + '<option value="all">All</option>';
+                                                                                        var breakTag = '<br>';
+                                                                                        var vaccineSelectDiv = '<span style="margin-bottom:10px;"> Vaccine type : </span><select class="rowFilterClass" id="vaccineFilter" onchange="filterAvailabilityData()" style="margin-bottom:10px;">' + '<option value="all">All</option>';
+                                                                                        var ageSelectDiv = '<span style="margin-bottom:10px;"> Minimum age : </span><select class="rowFilterClass" id="ageFilter" onchange="filterAvailabilityData()"  style="margin-bottom:10px;">' + '<option value="all">All</option>';
+                                                                                        var vaccineSet = new Set();
+                                                                                        var ageSet = new Set();
+                                                                                        var doseText = document.getElementById('dose_text').value;
+                                                                                        for (; i < centerLength; i++) {
+                                                                                            var center = availabilityStatus[i];
+                                                                                            hospitalSelectDiv += '<option value="' + center.name.replace(/ /g, '_') + '">' + center.name + '</option>';
+                                                                                            var surroundingDiv = '<div class="availabilityData ' + center.name.replace(/ /g, '_');
+                                                                                            var divText = '<h6 style="display:inline">Name : </h6>' + center.name;
+                                                                                            if (center.fee_type.toLowerCase() == 'paid') {
+                                                                                                divText += ' ( ' + center.fee_type + ' )';
+                                                                                            }
+                                                                                            divText += '<br>';
+                                                                                            divText += '<h6 style="display:inline">Address : </h6>' + center.address + '<br>';
+                                                                                            var googleLink = urls.googleMaps + center.name + ', ' + center.pincode;
+                                                                                            divText += '<h6 style="display:inline">Location : </h6> Click <a href="' + googleLink + '" target="_blank">here</a> to locate in google maps with hospital name and pin code<br>';
+                                                                                            divText += '<table style="width:100%"><tr><th>S no</th><th>Date</th><th>Available capacity</th><th>Minimum age</th><th>Vaccine</th></tr>';
+                                                                                            var sessionsArray = center.sessions;
+                                                                                            var sessionLength = sessionsArray.length;
+                                                                                            var j = 0;
+                                                                                            for (; j < sessionLength; j++) {
+                                                                                                var session = sessionsArray[j];
+                                                                                                divText += '<tr class="availabilityRows ' + session.vaccine + ' age' + session.min_age_limit + '"><td>' + (j + 1) + '</td><td>' + session.date + '</td>' + '<td>Overall availability : ' + session.available_capacity;
+                                                                                                if (doseText == 'available_capacity_dose1' || doseText == 'available_capacity') {
+                                                                                                    divText += '<br>Dose 1 : ' + session.available_capacity_dose1;
+                                                                                                }
+                                                                                                if (doseText == 'available_capacity_dose2' || doseText == 'available_capacity') {
+                                                                                                    divText += '<br>Dose 2 : ' + session.available_capacity_dose2;
+                                                                                                }
+                                                                                                divText += '</td><td>' + session.min_age_limit + '</td><td>' + session.vaccine + '</td></tr>';
+                                                                                                vaccineSet.add(session.vaccine);
+                                                                                                var ageClassName = 'age' + session.min_age_limit;
+                                                                                                ageSet.add(ageClassName);
+                                                                                                surroundingDiv += ' ' + session.vaccine.replace(/ /g, '_') + ' ' + ageClassName;
+                                                                                            }
+                                                                                            surroundingDiv += '">';
+                                                                                            displayText += surroundingDiv + divText;
+                                                                                            displayText += '</table><br></div>';
+                                                                                        }
+                                                                                        var vaccineValues = vaccineSet.values();
+                                                                                        for (var vaccineInt = 0; vaccineInt < vaccineSet.size; vaccineInt++) {
+                                                                                            var vaccine = vaccineValues.next().value;
+                                                                                            vaccineSelectDiv += '<option value="' + vaccine.replace(/ /g, '_') + '">' + vaccine + '</option>';
+                                                                                        }
+                                                                                        var ageValues = ageSet.values();
+                                                                                        for (var ageInt = 0; ageInt < ageSet.size; ageInt++) {
+                                                                                            var ageValue = ageValues.next().value;
+                                                                                            ageSelectDiv += '<option value="' + ageValue + '">' + ageValue.replace(/^age/, '') + '</option>';
+                                                                                        }
+                                                                                        hospitalSelectDiv += '</select>';
+                                                                                        vaccineSelectDiv += '</select>';
+                                                                                        ageSelectDiv += '</select>';
+                                                                                        document.getElementById('slotAvailability').innerHTML = hospitalSelectDiv + breakTag + vaccineSelectDiv + breakTag + ageSelectDiv + breakTag + displayText;
+                                                                                        showOrHideElements('#slotAvailability', 'block');
+                                                                                    }
+                                                                                }
+
+                                                                                function disableOrEnableAllInputs(isDisabled) {
+                                                                                    var inputElements = document.getElementsByTagName('input');
+                                                                                    for (var i = 0; i < inputElements.length; i++) {
+                                                                                        inputElements[i].disabled = isDisabled;
+                                                                                    }
+                                                                                    var selectElements = document.getElementsByTagName('select');
+                                                                                    for (var i = 0; i < selectElements.length; i++) {
+                                                                                        selectElements[i].disabled = isDisabled;
+                                                                                    }
+                                                                                    document.getElementById('startPollingButton').disabled = isDisabled;
+                                                                                    document.getElementById('pollNowButton').disabled = isDisabled;
+                                                                                    showOrHideElements('#pollingStatus', isDisabled ? 'block' : 'none');
+                                                                                }
+
+                                                                                function disableAllInputs() {
+                                                                                    disableOrEnableAllInputs(true);
+                                                                                }
+
+                                                                                function enableAllInputs() {
+                                                                                    disableOrEnableAllInputs(false);
+                                                                                }
+
+                                                                                function getPollingUrl() {
+                                                                                    document.getElementById('slotAvailability').innerHTML = '';
+                                                                                    var ele = document.getElementsByName('area_option');
+                                                                                    var url = '';
+                                                                                    var date = '';
+                                                                                    if (useCurrentDate) {
+                                                                                        var dateObject = new Date();
+                                                                                        var dateText = (dateObject.getDate() < 10) ? '0' + dateObject.getDate() : dateObject.getDate();
+                                                                                        var month = ((dateObject.getMonth() + 1) < 10) ? '0' + (dateObject.getMonth() + 1) : (dateObject.getMonth() + 1);
+                                                                                        date = dateText + '-' + month + '-' + dateObject.getFullYear();
+                                                                                    } else {
+                                                                                        if (isDatePickerSupported()) {
+                                                                                            var datePickerValues = document.getElementById('date_picker').value.split('-');
+                                                                                            date = datePickerValues[2] + '-' + datePickerValues[1] + '-' + datePickerValues[0];
+                                                                                        } else {
+                                                                                            var dateText = (document.getElementById('day_text').value < 10) ? '0' + document.getElementById('day_text').value : document.getElementById('day_text').value;
+                                                                                            var month = (document.getElementById('month_text').value < 10) ? '0' + document.getElementById('month_text').value : document.getElementById('month_text').value;
+                                                                                            date = dateText + '-' + month + '-' + document.getElementById('year_text').value;
+                                                                                        }
+                                                                                    }
+                                                                                    if (date != '' && date != undefined) {
+                                                                                        var queryParams = '?date=' + date + '&';
+                                                                                        for (var i = 0; i < ele.length; i++) {
+                                                                                            if (ele[i].checked) {
+                                                                                                if (ele[i].value == 'district_code') {
+                                                                                                    var districtId = document.getElementById('district_list').value;
+                                                                                                    if (districtId == null || districtId == '') {
+                                                                                                        alert('Missing district selection');
+                                                                                                        return;
+                                                                                                    }
+                                                                                                    url = urls.sessionBasedOnDistrict + queryParams + 'district_id=' + districtId;
+                                                                                                } else {
+                                                                                                    var pincode = document.getElementById('pin_code_text').value;
+                                                                                                    if (pincode == null || pincode == '') {
+                                                                                                        alert('Missing pin code input');
+                                                                                                        return;
+                                                                                                    }
+                                                                                                    url = urls.sessionBasedOnPin + queryParams + 'pincode=' + pincode;
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    } else {
+                                                                                        alert('Invalid input');
+                                                                                    }
+                                                                                    return url;
+                                                                                }
+
+                                                                                function openCowinSite() {
+                                                                                    window.open(urls.selfRegistrationUrl, '_blank');
+                                                                                }
+
+                                                                                function displayNoSlotAvailable() {
+                                                                                    document.getElementById('slotAvailability').innerHTML = 'No slots available currently for the given input';
+                                                                                    showOrHideElements('#slotAvailability', 'block');
+                                                                                }
+
+                                                                                function displayProblematicConnection() {
+                                                                                    document.getElementById('slotAvailability').innerHTML = 'Cowin site is not reachable. Please check internet connection.';
+                                                                                    showOrHideElements('#slotAvailability', 'block');
+                                                                                }
+
+                                                                                function sleepInSecs(sec) {
+                                                                                    return new Promise(resolve=>{
+                                                                                        var y = setTimeout(resolve, sec * 1000);
+                                                                                        timeoutTimerList.push(y);
+                                                                                    }
+                                                                                    );
+                                                                                }
+
+                                                                                async function pollNow() {
+                                                                                    showOrHideElements('#pollingStatus', 'none');
+                                                                                    var url = getPollingUrl();
+                                                                                    if (url == null || url == '') {
+                                                                                        return;
+                                                                                    }
+                                                                                    var pollingResponse = ajaxRequest(url);
+                                                                                    showOrHideElements('#slotAvailability', 'none');
+                                                                                    await sleepInSecs(0.5);
+                                                                                    if (pollingResponse == 'Error occurred') {
+                                                                                        displayProblematicConnection();
+                                                                                    } else {
+                                                                                        var availabilityStatus = checkAvailability(JSON.parse(pollingResponse));
+                                                                                        if (availabilityStatus != null && availabilityStatus.length > 0) {
+                                                                                            displayAvailability(availabilityStatus);
+                                                                                            audio = new Audio(urls.notificationAudioUrl);
+                                                                                            audio.play();
+                                                                                        } else {
+                                                                                            displayNoSlotAvailable();
+                                                                                        }
+                                                                                    }
+                                                                                    setStopPolling();
+                                                                                }
+
+                                                                                var intervalTimerList = [];
+                                                                                var timeoutTimerList = [];
+
+                                                                                function clearTimerList() {
+                                                                                    for (var i = 0; i < intervalTimerList.length; i++) {
+                                                                                        clearInterval(intervalTimerList[i]);
+                                                                                    }
+                                                                                    for (var i = 0; i < timeoutTimerList.length; i++) {
+                                                                                        clearTimeout(timeoutTimerList[i]);
+                                                                                    }
+                                                                                }
+                                                                                var counter = 0;
+                                                                                var pauseTimer = false;
+                                                                                var timerFunction = function() {
+                                                                                    if (!pauseTimer) {
+                                                                                        var sec = urls.pollingFrequency;
+                                                                                        var distance = sec - counter;
+                                                                                        document.getElementById('pollingStatus').innerHTML = 'Next search in : ' + Math.floor((distance / 60)) + ' mins ' + Math.floor((distance % 60)) + 'secs';
+                                                                                        counter++;
+                                                                                        // If the count down is over, write some text
+                                                                                        if (distance < 0 && !stopPolling) {
+                                                                                            document.getElementById('pollingStatus').innerHTML = 'Next search in : ' + Math.floor((sec / 60)) + ' mins ' + Math.floor((sec % 60)) + 'secs';
+                                                                                        }
+                                                                                        if (stopPolling) {
+                                                                                            showOrHideElements('#pollingStatus', 'none')
+                                                                                        }
+                                                                                    }
+                                                                                }
+
+                                                                                function setPauseTimer(flag) {
+                                                                                    pauseTimer = flag;
+                                                                                }
+
+                                                                                function resetTimer() {
+                                                                                    setPauseTimer(false);
+                                                                                    counter = 0;
+                                                                                }
+
+                                                                                async function startPolling() {
+                                                                                    clearTimerList();
+                                                                                    var url = getPollingUrl();
+                                                                                    if (url == null || url == '') {
+                                                                                        return;
+                                                                                    }
+                                                                                    var sec = urls.pollingFrequency;
+                                                                                    document.getElementById('pollNowButton').disabled = true;
+                                                                                    var x = setInterval(timerFunction, 1000);
+                                                                                    setPauseTimer(true);
+                                                                                    intervalTimerList.push(x);
+                                                                                    disableAllInputs();
+                                                                                    do {
+                                                                                        stopPolling = false;
+                                                                                        document.getElementById('pollingStatus').innerHTML = '';
+                                                                                        var pollingResponse = ajaxRequest(url);
+                                                                                        showOrHideElements('#slotAvailability', 'none');
+                                                                                        await sleepInSecs(0.5);
+                                                                                        if (pollingResponse == 'Error occurred') {
+                                                                                            displayProblematicConnection();
+                                                                                        } else {
+                                                                                            var availabilityStatus = stopPolling ? null : checkAvailability(JSON.parse(pollingResponse));
+                                                                                            if (availabilityStatus != null && availabilityStatus.length > 0) {
+                                                                                                displayAvailability(availabilityStatus);
+                                                                                                setPauseTimer(true);
+                                                                                                document.getElementById('pollingStatus').innerHTML = '';
+                                                                                                var audio = new Audio(urls.notificationAudioUrl);
+                                                                                                audio.play();
+                                                                                                await sleepInSecs(1);
+                                                                                                audio = new Audio(urls.notificationAudioUrl);
+                                                                                                audio.play();
+                                                                                                await sleepInSecs(1);
+                                                                                                audio = new Audio(urls.notificationAudioUrl);
+                                                                                                audio.play();
+                                                                                            } else {
+                                                                                                displayNoSlotAvailable();
+                                                                                            }
+                                                                                        }
+                                                                                        resetTimer();
+                                                                                        await sleepInSecs(sec);
+                                                                                        url = getPollingUrl();
+                                                                                    } while (!stopPolling);
+                                                                                    stopPolling = true;
+                                                                                    enableAllInputs();
+                                                                                    clearInterval(x);
+                                                                                    document.getElementById('pollingStatus').innerHTML = 'Searching stopped';
+                                                                                }
+
+                                                                                function setStopPolling() {
+                                                                                    stopPolling = true;
+                                                                                    enableAllInputs();
+                                                                                    clearTimerList();
+                                                                                    document.getElementById('pollingStatus').innerHTML = '';
+                                                                                }
+                                                                            </script>
+                                                                        </head>
+                                                                        <body data-rsssl=1 onload="displayDivBasedOnRadioValue()">
+                                                                            <p>Notify slot availability based on:</p>
+                                                                            <input type="radio" id="pin" name="area_option" value="pin_code" onclick="displayDivBasedOnRadioValue()" checked>
+                                                                            <label for="pin">Area pin code</label>
+                                                                            <input type="radio" id="district" name="area_option" value="district_code" onclick="displayDivBasedOnRadioValue()">
+                                                                            <label for="district">District list</label>
+                                                                            <br>
+                                                                            <br>
+                                                                            <div class="pin_code_class" style="display:none">
+                                                                                <span>Please enter area pin code :</span>
+                                                                                <input type="text" id="pin_code_text" name="pin" value="">
+                                                                                <br>
+                                                                                <br>
+                                                                            </div>
+                                                                            <div class="state_code_class" style="display:none">
+                                                                                <label for="state_list">Please select your state :</label>
+                                                                                <select name="state_list" id="state_list" onchange="loadDistricts()"></select>
+                                                                                <br>
+                                                                                <br>
+                                                                                <div class="district_code_class" style="display:none">
+                                                                                    <label for="district_list">Please select your district :</label>
+                                                                                    <select name="district_list" id="district_list"></select>
+                                                                                </div>
+                                                                                <br>
+                                                                            </div>
+                                                                            <div class="date_class" style="display:none">
+                                                                                <span>Please select date option : </span>
+                                                                                <input type="radio" id="current_date" name="date_option" value="current_date" onclick="displayDateBasedOnRadioValue()" checked>
+                                                                                <label for="current_date">Current date</label>
+                                                                                <input type="radio" id="custom_date" name="date_option" value="custom_date" onclick="displayDateBasedOnRadioValue()">
+                                                                                <label for="custom_date">Custom date</label>
+                                                                                <br>
+                                                                                <div id="date_selector_div" style="display:none">
+                                                                                    <br>
+                                                                                    <span>Please select date :</span>
+                                                                                    <input type="date" min="2021-01-01" max="2023-12-01" id="date_picker" style="display:none">
+                                                                                    <span id="date_selector">
+                                                                                        <input type="number" min="1" max="31" value="1" id="day_text" required>
+                                                                                        (Date) - <input type="number" min="1" max="12" value="1" id="month_text" required>
+                                                                                        (Month) - <input type="number" min="2021" value="2021" max="2022" id="year_text" required>(Year)
+                                                                                    </span>
+                                                                                    <br>
+                                                                                </div>
+                                                                                <br>
+                                                                                <span>Please select age range :</span>
+                                                                                <select id="age_text" required>
+                                                                                    <!--<option value="0-17"> < 18 </option>-->
+                                                                                    <option value="18-44">18-44 </option>
+                                                                                    <option value="45-99">45+ </option>
+                                                                                    <option value="0-99">All </option>
+                                                                                </select>
+                                                                                <br>
+                                                                                <br>
+                                                                                <span>Please select dose :</span>
+                                                                                <select id="dose_text" required>
+                                                                                    <!--<option value="0-17"> < 18 </option>-->
+                                                                                    <option value="available_capacity">All Doses </option>
+                                                                                    <option value="available_capacity_dose1">Dose 1 </option>
+                                                                                    <option value="available_capacity_dose2">Dose 2 </option>
+                                                                                </select>
+                                                                                <br>
+                                                                                <br>
+                                                                            </div>
+                                                                            <div class="start_stop_polling" style="display:none">
+                                                                                <button id="startPollingButton" onclick="startPolling()" style="margin-right:10px;margin-bottom:10px;">Notify when available</button>
+                                                                                <button id="stopPollingButton" onclick="setStopPolling()" style="margin-right:10px;margin-bottom:10px;">Stop notifying</button>
+                                                                                <button id="pollNowButton" onclick="pollNow()" style="margin-right:10px;margin-bottom:10px;">Find Now</button>
+                                                                                <button id="openCowinSiteButton" onclick="openCowinSite()">Cowin site</button>
+                                                                                <br>
+                                                                                <span id="pollingStatus" style='display:none'>Polling data from cowin site... </span>
+                                                                                <br>
+                                                                            </div>
+                                                                            <div id="slotAvailability"></div>
+                                                                            <div id="slotNotAvailableFilter" style="display:none">Not available for selected filter.</div>
+                                                    
+                                                                    <p>
+                                                                        <strong>Usage Details :</strong>
+                                                                    </p>
+                                                                    <ul>
+                                                                        <li>Enter the pin code (or) Select the district, select the DATE and AGE group.</li>
+                                                                        <li>Click &#8220;Find Now &#8221;to find the current availability, result will be shown immediately.</li>
+                                                                        <li>
+                                                                            Click &#8220;Notify when available &#8221;to alarm whenever vaccine available in the selected pin code / District. <strong>Alarm sound is played in the browser</strong>
+                                                                            , when vaccine is found available. This web-app application checks every one minute for availability.
+                                                                        </li>
+                                                                        <li>Once &#8220;Notify when available &#8221;is pressed, all options and buttons will be disabled until &#8220;stop notifying &#8221;is pressed.</li>
+                                                                        <li>
+                                                                            Click &#8220;COWIN SITE &#8221;to open <a href="https://selfregistration.cowin.gov.in/">COWIN registration portal</a>
+                                                                        </li>
+                                                                    </ul>
+                                                
+                                            
+                  
+       
+       
+        
