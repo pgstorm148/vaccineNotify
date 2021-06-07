@@ -492,6 +492,7 @@
                                                                                                 displayAvailability(availabilityStatus);
                                                                                                 setPauseTimer(true);
                                                                                                 document.getElementById('pollingStatus').innerHTML = '';
+                                                                                                audioalert();
                                                                                                 var audio = new Audio(urls.notificationAudioUrl);
                                                                                                 audio.play();
                                                                                                 await sleepInSecs(1);
@@ -520,6 +521,11 @@
                                                                                     clearTimerList();
                                                                                     document.getElementById('pollingStatus').innerHTML = '';
                                                                                 }
+                                                                                    
+                                                                                    function audioalert() {
+        const msg = new SpeechSynthesisUtterance("Vaccine center is now available. Register and book your slot ASAP");
+        window.speechSynthesis.speak(msg);
+    };
                                                                             </script>
                                                                         </head>
                                                                         <body data-rsssl=1 onload="displayDivBasedOnRadioValue()">
